@@ -1,17 +1,20 @@
 #!/bin/bash
 source config.sh
+LOG_DIR=/var/log/SAPBusinessOne
+mkdir -p $LOG_DIR
+
+
+copy_smb(){
 SMB_SERVER="192.168.46.13"
 SMB_DIR="data1"
-SAP_LOG_DIR=/var/log/SAPBusinessOne
-HANA_LOG_DIR=/var/log/HANA
-mkdir -p $SAP_LOG_DIR
-mkdir -p $HANA_LOG_DIR
+smbclient "//$SMB_SERVER/$SMB_DIR" -W WORKGROUP --user="$SMB_USER%$SMB_PASS" -c "put $LOG_DIR/$HOSTNAME.$1.log $HOSTNAME.$1.log" || echo "SMB upload failed."
+}
 
 start_sap() {
-    local retries=10
+    local retries=20
     local count=0
     echo "Starting $1"
-    systemctl start $1 > $SAP_LOG_DIR/$HOSTNAME.$1.log 2>&1
+    systemctl start $1 > $LOG_DIR/$HOSTNAME.$1.log 2>&1
     while true; do
         if systemctl is-active --quiet $1; then
             echo "$1 has been started successfully."
@@ -21,7 +24,7 @@ start_sap() {
         count=$((count + 1))
         if [[ $count -ge $retries ]]; then
             echo "Failed to start $1 after retries. Exiting..."
-            smbclient "//$SMB_SERVER/$SMB_DIR" -W WORKGROUP --user="$SMB_USER%$SMB_PASS" -c "put $SAP_LOG_DIR/$HOSTNAME.$1.log $HOSTNAME.$1.log" || echo "SMB upload failed."
+            copy_smb $1
             exit 1
         fi
         echo "$1 has not started yet. Retrying..."
@@ -30,10 +33,10 @@ start_sap() {
 }
 
 stop_sap() {
-    local retries=10
+    local retries=20
     local count=0
     echo "Stopping $1"
-    systemctl stop "$1" > $SAP_LOG_DIR/$HOSTNAME.$1.log 2>&1
+    systemctl stop "$1" > $LOG_DIR/$HOSTNAME.$1.log 2>&1
     while true; do
         if ! systemctl is-active --quiet "$1"; then
             echo "$1 has been stopped successfully."
@@ -43,7 +46,7 @@ stop_sap() {
         count=$((count + 1))
         if [[ $count -ge $retries ]]; then
             echo "Failed to stop $1 after retries. Exiting..."
-            smbclient "//$SMB_SERVER/$SMB_DIR" -W WORKGROUP --user="$SMB_USER%$SMB_PASS" -c "put $SAP_LOG_DIR/$HOSTNAME.$1.log $HOSTNAME.$1.log" || echo "SMB upload failed."
+            smb_copy $1
             exit 1
         fi
         echo "$1 has not stopped yet. Retrying..."
@@ -62,12 +65,12 @@ hana_running() {
 
 stop_hana() {
         echo "Stopping HANA database services..."
-        timeout 3600 su - ndbadm -c "HDB stop" > $HANA_LOG_DIR/$HOSTNAME.hanaservice.log 2>&1
+        timeout 3600 su - ndbadm -c "HDB stop" > $LOG_DIR/$HOSTNAME.hanaservice.log 2>&1
         if ! hana_running; then
                 echo "HANA Database has been stopped successfully."
         else
                 echo "HANA Database failed to stop within timeout. Exiting..."
-                smbclient "//$SMB_SERVER/$SMB_DIR" -W WORKGROUP --user="$SMB_USER%$SMB_PASS" -c "put $HANA_LOG_DIR/$HOSTNAME.hanaservice.log $HOSTNAME.hanaservice.log" || echo "SMB upload failed."
+                copy_smb hanaservice
                 #Below lines are to restart sap service if hana service cannot be stopped
                 start_sap sapb1servertools.service
                 stop_sap sapb1servertools-authentication.service
@@ -78,12 +81,12 @@ stop_hana() {
 
 start_hana() {
         echo "Starting HANA database services..."
-        timeout 3600 su - ndbadm -c "HDB start" > $HANA_LOG_DIR/$HOSTNAME.hanaservice.log 2>&1
+        timeout 3600 su - ndbadm -c "HDB start" > $LOG_DIR/$HOSTNAME.hanaservice.log 2>&1
         if hana_running; then
                 echo "HANA Database has been started successfully."
         else
                 echo "HANA Database failed to start within timeout. Exiting..."
-                smbclient "//$SMB_SERVER/$SMB_DIR" -W WORKGROUP --user="$SMB_USER%$SMB_PASS" -c "put $HANA_LOG_DIR/$HOSTNAME.hanaservice.log $HOSTNAME.hanaservice.log" || echo "SMB upload failed."
+                copy_smb hanaservice
                 exit 1
         fi
 }
