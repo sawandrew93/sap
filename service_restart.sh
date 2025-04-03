@@ -46,7 +46,7 @@ stop_sap() {
         count=$((count + 1))
         if [[ $count -ge $retries ]]; then
             echo "Failed to stop $1 after retries. Exiting..."
-            smb_copy $1
+            copy_smb $1
             exit 1
         fi
         echo "$1 has not stopped yet. Retrying..."
