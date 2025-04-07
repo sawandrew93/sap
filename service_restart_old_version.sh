@@ -1,5 +1,4 @@
 #!/bin/bash
-source config.sh
 LOG_DIR=/var/log/SAPBusinessOne
 mkdir -p "$LOG_DIR"
 
@@ -9,7 +8,7 @@ start_sap() {
     echo "Starting $1"
     service $1 start > $LOG_DIR/$HOSTNAME.$1.log 2>&1
     while true; do
-        if service $1 status | grep -q "running"; then
+        if service $1 status | grep -q "Running with PID"; then
             echo "$1 has been started successfully."
             break
         fi
@@ -30,7 +29,7 @@ stop_sap() {
     echo "Stopping $1"
     service $1 stop > $LOG_DIR/$HOSTNAME.$1.log 2>&1
     while true; do
-        if ! service $1 status | grep -q "running"; then
+        if service $1 status | grep -q "but no PID file exists"; then
             echo "$1 has been stopped successfully."
             break
         fi
