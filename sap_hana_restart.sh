@@ -10,7 +10,7 @@ smbclient "//$SMB_SERVER/$SMB_DIR" -W WORKGROUP --user="$SMB_USER%$SMB_PASS" -c 
 }
 
 start_sap() {
-    local retries=3
+    local retries=2
     local count=0
     echo "Starting $1"
     systemctl start $1 > $LOG_DIR/$HOSTNAME.$1.log 2>&1
@@ -27,12 +27,12 @@ start_sap() {
         fi
         echo "$1 has not started yet. Retrying..."
         systemctl start $1 > $LOG_DIR/$HOSTNAME.$1.log 2>&1
-        sleep 10
+        sleep 60
     done
 }
 
 stop_sap() {
-    local retries=3
+    local retries=2
     local count=0
     echo "Stopping $1"
     systemctl stop $1 > $LOG_DIR/$HOSTNAME.$1.log 2>&1
@@ -49,7 +49,7 @@ stop_sap() {
         fi
         echo "$1 has not stopped yet. Retrying..."
         systemctl stop $1 > $LOG_DIR/$HOSTNAME.$1.log 2>&1
-        sleep 10
+        sleep 60
     done
 }
 
